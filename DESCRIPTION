@@ -1,6 +1,6 @@
 Package: geos
 Title: Open Source Geometry Engine ('GEOS') R API
-Version: 0.0.1
+Version: 0.0.2
 Authors@R: 
     c(
       person(given = "Dewey",
@@ -31,9 +31,9 @@ URL: https://paleolimbot.github.io/geos/,
 BugReports: https://github.com/paleolimbot/geos/issues
 LinkingTo: libgeos
 NeedsCompilation: yes
-Packaged: 2020-08-07 15:32:19 UTC; dewey
+Packaged: 2021-01-04 12:30:11 UTC; dewey
 Author: Dewey Dunnington [aut, cre] (<https://orcid.org/0000-0002-9415-4582>),
   Edzer Pebesma [aut] (<https://orcid.org/0000-0001-8049-7069>)
 Maintainer: Dewey Dunnington <dewey@fishandwhistle.net>
 Repository: CRAN
-Date/Publication: 2020-08-13 09:10:02 UTC
+Date/Publication: 2021-01-04 15:30:10 UTC
