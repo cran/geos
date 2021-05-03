@@ -5,6 +5,8 @@ test_that("strtree objects can be created", {
   geom <- geos_read_wkt("POLYGON ((0 0, 10 0, 10 10, 0 10, 0 0))")
   tree <- geos_strtree(geom)
 
+  expect_identical(as_geos_strtree(tree), tree)
+
   # make sure geom can be re-extracted from the object
   expect_reference(geos_strtree_data(tree), geom)
 
@@ -20,6 +22,13 @@ test_that("strtree objects can be created", {
   gc()
 })
 
+test_that("strtree object carry a wk_crs()", {
+  expect_identical(
+    wk_crs(geos_strtree(as_geos_geometry("POINT (0 1)", crs = 12))),
+    12
+  )
+})
+
 test_that("strtree objects can be created from well-known text", {
   expect_identical(
     geos_write_wkt(geos_strtree_data(as_geos_strtree("POINT (0 0)"))),
@@ -33,9 +42,16 @@ test_that("strtree objects can be created from well-known text", {
   )
 })
 
-test_that("strtree objects have reasonable format() and print() methods", {
+test_that("strtree objects have reasonable format(), print(), and str() methods", {
   expect_identical(format(geos_strtree(character(0))), "<geos_strtree containing 0 items>")
   expect_output(print(geos_strtree(character(0))), "<geos_strtree containing 0 items>")
+
+  expect_match(
+    format(geos_strtree(as_geos_geometry("POINT (0 1)", crs = 1234))),
+    "with CRS=1234"
+  )
+
+  expect_output(str(geos_strtree("POINT (0 1)")), "geos_strtree containing 1 item")
 })
 
 test_that("strtree objects that are invalid cannot be queried", {
@@ -47,10 +63,15 @@ test_that("strtree objects that are invalid cannot be queried", {
   expect_error(geos_strtree_query(tree, "POINT (30 10)"), "External.*?is not valid")
 })
 
+test_that("strtree objects error when queried with an object with a different crs", {
+  tree <- geos_strtree(as_geos_geometry("POINT (30 10)", crs = 1234))
+  expect_error(geos_strtree_query(tree, "POINT (30 10)"), "are not equal")
+})
+
 test_that("empty trees can be queried", {
   expect_identical(
     geos_strtree_query(character(0), c("POINT (30 10)", "POINT (0 0)")),
-    list(integer(), integer())
+    list(double(), double())
   )
 })
 
@@ -67,7 +88,7 @@ test_that("strtree objects can be queried", {
       ),
       sort
     ),
-    list(2L, 1L, c(1L, 2L), NULL)
+    list(2, 1, c(1, 2), NULL)
   )
 })
 
@@ -84,14 +105,14 @@ test_that("matrix predicates return the correct shape output", {
       ),
       sort
     ),
-    list(2L, c(1L, 2L), integer(), integer(), NULL)
+    list(2, c(1, 2), double(), double(), NULL)
   )
 })
 
 test_that("matrix predicates work", {
 
-  expect_matrix_true <- function(x) expect_identical({{ x }}, list(1L))
-  expect_matrix_false <- function(x) expect_identical({{ x }}, list(integer()))
+  expect_matrix_true <- function(x) expect_identical({{ x }}, list(1))
+  expect_matrix_false <- function(x) expect_identical({{ x }}, list(double()))
 
   expect_matrix_false(
     geos_disjoint_matrix(
@@ -308,7 +329,7 @@ test_that("nearest functions work", {
       c(NA, "POINT (0.9 0.9)", "POINT (0.1 0.1)"),
       c("POINT (0 0)", "POINT (1 1)")
     ),
-    c(NA, 2L, 1L)
+    c(NA, 2, 1)
   )
 
   expect_identical(
@@ -316,7 +337,7 @@ test_that("nearest functions work", {
       c(NA, "POINT (0.9 0.9)", "POINT (0.1 0.1)"),
       c("POINT (0 0)", "POINT (1 1)")
     ),
-    c(NA, 2L, 1L)
+    c(NA, 2, 1)
   )
 
   expect_identical(
@@ -324,7 +345,7 @@ test_that("nearest functions work", {
       c(NA, "POINT (0.9 0.9)", "POINT (0.1 0.1)"),
       c("POINT (0 0)", "POINT (1 1)")
     ),
-    c(NA, 2L, 1L)
+    c(NA, 2, 1)
   )
 
   expect_identical(
@@ -333,7 +354,7 @@ test_that("nearest functions work", {
       c("POINT (0 0)", "POINT (1 1)"),
       densify = 0.5
     ),
-    c(NA, 2L, 1L)
+    c(NA, 2, 1)
   )
 
   expect_identical(
@@ -341,7 +362,7 @@ test_that("nearest functions work", {
       c(NA, "POINT (0.9 0.9)", "POINT (0.1 0.1)"),
       c("LINESTRING (0 0, -1 -1)", "LINESTRING (1 1, 2 2)"),
     ),
-    c(NA, 2L, 1L)
+    c(NA, 2, 1)
   )
 
   expect_identical(
@@ -350,13 +371,13 @@ test_that("nearest functions work", {
       c("LINESTRING (0 0, -1 -1)", "LINESTRING (1 1, 2 2)"),
       densify = 0.5
     ),
-    c(NA, 2L, 1L)
+    c(NA, 2, 1)
   )
 
   # empty tree
   expect_identical(
     geos_nearest(c(NA, "POINT (0.9 0.9)", "POINT (0.1 0.1)"), character()),
-    c(NA_integer_, NA_integer_, NA_integer_)
+    c(NA_real_, NA_real_, NA_real_)
   )
 
   # invalid tree

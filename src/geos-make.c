@@ -32,15 +32,13 @@ SEXP geos_c_make_point(SEXP x, SEXP y, SEXP z) {
       // don't know how to make this fire
       // if similar to linestring, destroying seq here
       // will crash the session
-      UNPROTECT(1); // # nocov
-      GEOS_ERROR("[i=%d] ", i + 1); // # nocov
+      Rf_error("[%d] %s", i + 1, globalErrorMessage); // # nocov
     }
 
     SET_VECTOR_ELT(result, i, geos_common_geometry_xptr(geometry));
   }
 
-  GEOS_FINISH();
-  UNPROTECT(1); // result
+    UNPROTECT(1); // result
   return result;
 }
 
@@ -104,7 +102,7 @@ SEXP geos_c_make_linestring(SEXP x, SEXP y, SEXP z, SEXP featureLengths) {
     SET_VECTOR_ELT(result, i, geos_common_geometry_xptr(itemGeometry));
   }
 
-  UNPROTECT(1);
+    UNPROTECT(1);
   return result;
 }
 
@@ -215,7 +213,8 @@ SEXP geos_c_make_polygon(SEXP x, SEXP y, SEXP z, SEXP ringLengthsByFeature) {
 
     // not sure how to make this fire given constraints above
     if (itemGeometry == NULL) {
-      // cleanup_geoms(handle, rings, featureLength); // # nocov
+      // pointers that are managed by a successful call to to
+      // GEOSGeom_create* functions also destroy the pointed to objects on error
       UNPROTECT(1); // # nocov
       GEOS_ERROR("[i=%d] ", iCoord); // # nocov
     }
@@ -223,7 +222,7 @@ SEXP geos_c_make_polygon(SEXP x, SEXP y, SEXP z, SEXP ringLengthsByFeature) {
     SET_VECTOR_ELT(result, i, geos_common_geometry_xptr(itemGeometry));
   }
 
-  UNPROTECT(1);
+    UNPROTECT(1);
   return result;
 }
 
@@ -253,16 +252,14 @@ SEXP geos_c_make_collection(SEXP geom, SEXP typeId, SEXP featureLengths) {
       item = VECTOR_ELT(geom, iGeom);
       if (item == R_NilValue) {
         cleanup_geoms(handle, geoms, j);
-        GEOS_FINISH();
-        UNPROTECT(1);
+                UNPROTECT(1);
         Rf_error("[i=%d] Can't nest a missing geometry", iGeom);
       }
 
       itemGeometry = (GEOSGeometry*) R_ExternalPtrAddr(item);
       if (itemGeometry == NULL) {
         cleanup_geoms(handle, geoms, j);
-        GEOS_FINISH();
-        UNPROTECT(1);
+                UNPROTECT(1);
         Rf_error("[i=%d] External pointer is not valid", iGeom);
       }
 
@@ -279,7 +276,14 @@ SEXP geos_c_make_collection(SEXP geom, SEXP typeId, SEXP featureLengths) {
 
     collection = GEOSGeom_createCollection_r(handle, intTypeId, geoms, featureLength);
     if (collection == NULL) {
-      cleanup_geoms(handle, geoms, featureLength);
+      // pointers that are managed by a successful call to to
+      // GEOSGeom_create* functions also destroy the pointed-to objects on error
+      // This changed between GEOS 3.8.1 and 3.9.1, so clean up the geometries
+      // to avoid a memory leak when linking to libgeos 3.8.1-4
+      if (libgeos_version_int() <= LIBGEOS_VERSION_INT(3, 8, 1)) {
+        cleanup_geoms(handle, geoms, featureLength);
+      }
+
       UNPROTECT(1);
       GEOS_ERROR("[i=%d] ", iGeom);
     }
@@ -287,8 +291,7 @@ SEXP geos_c_make_collection(SEXP geom, SEXP typeId, SEXP featureLengths) {
     SET_VECTOR_ELT(result, i, geos_common_geometry_xptr(collection));
   }
 
-  GEOS_FINISH();
-  UNPROTECT(1);
+    UNPROTECT(1);
   return result;
 }
 
@@ -331,7 +334,6 @@ SEXP geos_c_empty(SEXP typeId) {
     SET_VECTOR_ELT(result, i, geos_common_geometry_xptr(geometry));
   }
 
-  GEOS_FINISH();
-  UNPROTECT(1);
+    UNPROTECT(1);
   return result;
 }

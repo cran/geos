@@ -7,11 +7,18 @@
 \alias{geos_make_collection}
 \title{Create geometries from vectors of coordinates}
 \usage{
-geos_make_point(x, y, z = NA_real_)
+geos_make_point(x, y, z = NA_real_, crs = NULL)
 
-geos_make_linestring(x, y, z = NA_real_, feature_id = 1L)
+geos_make_linestring(x, y, z = NA_real_, feature_id = 1L, crs = NULL)
 
-geos_make_polygon(x, y, z = NA_real_, feature_id = 1L, ring_id = 1L)
+geos_make_polygon(
+  x,
+  y,
+  z = NA_real_,
+  feature_id = 1L,
+  ring_id = 1L,
+  crs = NULL
+)
 
 geos_make_collection(geom, type_id = "geometrycollection", feature_id = 1L)
 }
@@ -21,6 +28,8 @@ geos_make_collection(geom, type_id = "geometrycollection", feature_id = 1L)
 \item{y}{Vectors of coordinate values}
 
 \item{z}{Vectors of coordinate values}
+
+\item{crs}{An object that can be interpreted as a CRS}
 
 \item{feature_id}{Vectors for which a change in
 sequential values indicates a new feature or ring. Use \code{\link[=factor]{factor()}}

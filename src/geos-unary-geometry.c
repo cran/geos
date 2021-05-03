@@ -26,15 +26,13 @@
     geometryResult = _func(handle, geometry);                  \
                                                                \
     if (geometryResult == NULL) {                              \
-      UNPROTECT(1);                                            \
-      GEOS_ERROR("[i=%d] ", i + 1);                            \
+      Rf_error("[%d] %s", i + 1, globalErrorMessage);                            \
     } else {                                                   \
       SET_VECTOR_ELT(result, i, geos_common_geometry_xptr(geometryResult));\
     }                                                          \
   }                                                            \
                                                                \
-  GEOS_FINISH();                                               \
-  UNPROTECT(1);                                                \
+    UNPROTECT(1);                                                \
   return result;
 
 
@@ -138,15 +136,13 @@ SEXP geos_c_clone(SEXP geom) {
     geometryResult = _call;                                                \
                                                                            \
     if (geometryResult == NULL) {                                          \
-      UNPROTECT(1);                                                        \
-      GEOS_ERROR("[i=%d] ", i + 1);                                        \
+      Rf_error("[%d] %s", i + 1, globalErrorMessage);                                        \
     } else {                                                               \
       SET_VECTOR_ELT(result, i, geos_common_geometry_xptr(geometryResult));\
     }                                                                      \
   }                                                                        \
                                                                            \
-  GEOS_FINISH();                                                           \
-  UNPROTECT(1);                                                            \
+    UNPROTECT(1);                                                            \
   return result;
 
 
@@ -169,6 +165,31 @@ SEXP geos_c_simplify(SEXP geom, SEXP param) {
 SEXP geos_c_simplify_preserve_topology(SEXP geom, SEXP param) {
   GEOS_UNARY_GEOMETRY_PARAM(GEOSTopologyPreserveSimplify_r(handle, geometry, paramPtr[i]), double, REAL, ISNA(paramPtr[i]));
 }
+
+SEXP geos_c_unary_union_prec(SEXP geom, SEXP param) {
+#if LIBGEOS_VERSION_COMPILE_INT >= LIBGEOS_VERSION_INT(3, 9, 1)
+  if (libgeos_version_int() < LIBGEOS_VERSION_INT(3, 9, 1)) {
+    ERROR_OLD_LIBGEOS("GEOSUnaryUnionPrec_r()", "3.9.1");
+  }
+
+  GEOS_UNARY_GEOMETRY_PARAM(GEOSUnaryUnionPrec_r(handle, geometry, paramPtr[i]), double, REAL, ISNA(paramPtr[i]));
+#else
+  ERROR_OLD_LIBGEOS_BUILD("GEOSUnaryUnionPrec_r()", "3.9.1");
+#endif
+}
+
+SEXP geos_c_maximum_inscribed_circle(SEXP geom, SEXP param) {
+#if LIBGEOS_VERSION_COMPILE_INT >= LIBGEOS_VERSION_INT(3, 9, 1)
+  if (libgeos_version_int() < LIBGEOS_VERSION_INT(3, 9, 1)) {
+    ERROR_OLD_LIBGEOS("GEOSMaximumInscribedCircle_r()", "3.9.1");
+  }
+
+  GEOS_UNARY_GEOMETRY_PARAM(GEOSMaximumInscribedCircle_r(handle, geometry, paramPtr[i]), double, REAL, ISNA(paramPtr[i]));
+#else
+  ERROR_OLD_LIBGEOS_BUILD("GEOSMaximumInscribedCircle_r()", "3.9.1");
+#endif
+}
+
 
 // this should really be defined in libgeos.h and probably will be in future versions
 #ifndef GEOS_PREC_NO_TOPO
@@ -215,8 +236,7 @@ SEXP geos_c_set_srid(SEXP geom, SEXP srid) {
 
     // don't know how to trigger this
     if (geometryResult == NULL) {
-      UNPROTECT(1); // # nocov
-      GEOS_ERROR("[i=%d] ", i + 1); // # nocov
+      Rf_error("[%d] %s", i + 1, globalErrorMessage); // # nocov
     }
 
     // has no return code for exception
@@ -225,8 +245,7 @@ SEXP geos_c_set_srid(SEXP geom, SEXP srid) {
     SET_VECTOR_ELT(result, i, geos_common_geometry_xptr(geometryResult));
   }
 
-  GEOS_FINISH();
-  UNPROTECT(1);
+    UNPROTECT(1);
   return result;
 }
 
@@ -258,22 +277,20 @@ SEXP geos_c_normalize(SEXP geom) {
 
     // don't know how to trigger this
     if (geometryResult == NULL) {
-      UNPROTECT(1); // # nocov
-      GEOS_ERROR("[i=%d] ", i + 1); // # nocov
+      Rf_error("[%d] %s", i + 1, globalErrorMessage); // # nocov
     }
 
     returnCode = GEOSNormalize_r(handle, geometryResult);
 
     if (returnCode == -1) {
-      UNPROTECT(1); // # nocov
-      GEOS_ERROR("[i=%d] ", i + 1); // # nocov
+      GEOSGeom_destroy_r(handle, geometryResult); // # nocov
+      Rf_error("[%d] %s", i + 1, globalErrorMessage); // # nocov
     }
 
     SET_VECTOR_ELT(result, i, geos_common_geometry_xptr(geometryResult));
   }
 
-  GEOS_FINISH();
-  UNPROTECT(1);
+    UNPROTECT(1);
   return result;
 }
 
@@ -281,6 +298,9 @@ SEXP geos_c_normalize(SEXP geom) {
 SEXP geos_c_minimum_bounding_circle(SEXP geom) {
   R_xlen_t size = Rf_xlength(geom);
   SEXP result = PROTECT(Rf_allocVector(VECSXP, size));
+  SEXP radius = PROTECT(Rf_allocVector(REALSXP, size));
+  SEXP x = PROTECT(Rf_allocVector(REALSXP, size));
+  SEXP y = PROTECT(Rf_allocVector(REALSXP, size));
 
   GEOS_INIT();
 
@@ -288,39 +308,42 @@ SEXP geos_c_minimum_bounding_circle(SEXP geom) {
   GEOSGeometry* geometry;
   GEOSGeometry* geometryResult;
 
-  // not using the centre or radius for now, but these are needed for
-  // call to GEOSMinimumBoundingCircle_r
-  GEOSGeometry* center = GEOSGeom_createPointFromXY_r(handle, NAN, NAN);
-  double radius;
-  if (center == NULL) {
-    GEOS_ERROR("Error allocating %s", "center point"); // # nocov
-  }
+  GEOSGeometry* center;
+  double* pRadius = REAL(radius);
+  double* pX = REAL(x);
+  double* pY = REAL(y);
 
   for (R_xlen_t i = 0; i < size; i++) {
     item = VECTOR_ELT(geom, i);
 
     if (item == R_NilValue) {
       SET_VECTOR_ELT(result, i, R_NilValue);
+      pX[i] = NA_REAL;
+      pY[i] = NA_REAL;
+      pRadius[i] = NA_REAL;
       continue;
     }
 
     geometry = (GEOSGeometry*) R_ExternalPtrAddr(item);
     GEOS_CHECK_GEOMETRY(geometry, i);
 
-    geometryResult = GEOSMinimumBoundingCircle_r(handle, geometry, &radius, &center);
+    geometryResult = GEOSMinimumBoundingCircle_r(handle, geometry, pRadius + i, &center);
 
     if (geometryResult == NULL) {
-      GEOSGeom_destroy_r(handle, center);
-      UNPROTECT(1);
-      GEOS_ERROR("[i=%d] ", i + 1);
+      Rf_error("[%d] %s", i + 1, globalErrorMessage);
     } else {
       SET_VECTOR_ELT(result, i, geos_common_geometry_xptr(geometryResult));
+      GEOSGeomGetX_r(handle, center, pX + i);
+      GEOSGeomGetY_r(handle, center, pY + i);
+      GEOSGeom_destroy_r(handle, center);
     }
   }
 
-  GEOSGeom_destroy_r(handle, center);
-  GEOS_FINISH();
-  UNPROTECT(1);
+  
+  Rf_setAttrib(result, Rf_install("x"), x);
+  Rf_setAttrib(result, Rf_install("y"), y);
+  Rf_setAttrib(result, Rf_install("radius"), radius);
+  UNPROTECT(4);
   return result;
 }
 
@@ -351,15 +374,13 @@ SEXP geos_c_clip_by_rect(SEXP geom, SEXP xmin, SEXP ymin, SEXP xmax, SEXP ymax) 
     geometryResult = GEOSClipByRect_r(handle, geometry, pXmin[i], pYmin[i], pXmax[i], pYmax[i]);
 
     if (geometryResult == NULL) {
-      UNPROTECT(1);
-      GEOS_ERROR("[i=%d] ", i + 1);
+      Rf_error("[%d] %s", i + 1, globalErrorMessage);
     } else {
       SET_VECTOR_ELT(result, i, geos_common_geometry_xptr(geometryResult));
     }
   }
 
-  GEOS_FINISH();
-  UNPROTECT(1);
+    UNPROTECT(1);
   return result;
 }
 
@@ -390,15 +411,13 @@ SEXP geos_c_delaunay_triangulation(SEXP geom, SEXP tolerace, SEXP edges) {
     geometryResult = GEOSDelaunayTriangulation_r(handle, geometry, dTolerance, iEdges);
 
     if (geometryResult == NULL) {
-      UNPROTECT(1);
-      GEOS_ERROR("[i=%d] ", i + 1);
+      Rf_error("[%d] %s", i + 1, globalErrorMessage);
     } else {
       SET_VECTOR_ELT(result, i, geos_common_geometry_xptr(geometryResult));
     }
   }
 
-  GEOS_FINISH();
-  UNPROTECT(1);
+    UNPROTECT(1);
   return result;
 }
 
@@ -437,15 +456,13 @@ SEXP geos_c_voronoi_diagram(SEXP geom, SEXP env, SEXP tolerace, SEXP edges) {
     geometryResult = GEOSVoronoiDiagram_r(handle, geometry, envGeometry, dTolerance, iEdges);
 
     if (geometryResult == NULL) {
-      UNPROTECT(1);
-      GEOS_ERROR("[i=%d] ", i + 1);
+      Rf_error("[%d] %s", i + 1, globalErrorMessage);
     } else {
       SET_VECTOR_ELT(result, i, geos_common_geometry_xptr(geometryResult));
     }
   }
 
-  GEOS_FINISH();
-  UNPROTECT(1);
+    UNPROTECT(1);
   return result;
 }
 
@@ -495,19 +512,22 @@ SEXP geos_c_voronoi_diagram(SEXP geom, SEXP env, SEXP tolerace, SEXP edges) {
     }                                                            \
                                                                  \
     geometry = (GEOSGeometry*) R_ExternalPtrAddr(item);          \
-    GEOS_CHECK_GEOMETRY(geometry, i);                            \
+    if (geometry == NULL) {                                      \
+      GEOSBufferParams_destroy_r(handle, bufferParams);          \
+      GEOS_CHECK_GEOMETRY(geometry, i);                          \
+    }                                                            \
                                                                  \
     geometryResult = _call;                                      \
                                                                  \
     if (geometryResult == NULL) {                                \
-      UNPROTECT(1);                                              \
-      GEOS_ERROR("[i=%d] ", i + 1);                              \
+      GEOSBufferParams_destroy_r(handle, bufferParams);          \
+      Rf_error("[%d] %s", i + 1, globalErrorMessage);                              \
     } else {                                                     \
       SET_VECTOR_ELT(result, i, geos_common_geometry_xptr(geometryResult));\
     }                                                            \
   }                                                              \
                                                                  \
-  GEOS_FINISH();                                                 \
+  GEOSBufferParams_destroy_r(handle, bufferParams);              \
   UNPROTECT(1);                                                  \
   return result;
 
@@ -559,15 +579,13 @@ SEXP geos_c_geometry_n(SEXP geom, SEXP n) {
 
     // don't know how to make this occur
     if (geometryResult == NULL) {
-      UNPROTECT(1); // # nocov
-      GEOS_ERROR("[i=%d] ", i + 1); // # nocov
+      Rf_error("[%d] %s", i + 1, globalErrorMessage); // # nocov
     }
 
     SET_VECTOR_ELT(result, i, geos_common_child_geometry_xptr(geometryResult, item));
   }
 
-  GEOS_FINISH();
-  UNPROTECT(1);
+    UNPROTECT(1);
   return result;
 }
 
@@ -598,8 +616,7 @@ SEXP geos_c_ring_n(SEXP geom, SEXP n) {
 
     // error for non-polygons
     if (GEOSGeomTypeId_r(handle, geometry) != GEOS_POLYGON) {
-      GEOS_FINISH();
-      Rf_error("[i=%d] Can't extract rings from a non-polygon", i);
+            Rf_error("[i=%d] Can't extract rings from a non-polygon", i);
     }
 
     // extraction can result in segfault rather than exception here
@@ -621,15 +638,12 @@ SEXP geos_c_ring_n(SEXP geom, SEXP n) {
 
     // don't know how to make this occur
     if (geometryResult == NULL) {
-      UNPROTECT(1); // # nocov
-      GEOS_ERROR("[i=%d] ", i + 1); // # nocov
+      Rf_error("[%d] %s", i + 1, globalErrorMessage); // # nocov
     }
 
     SET_VECTOR_ELT(result, i, geos_common_child_geometry_xptr(geometryResult, item));
   }
 
-  GEOS_FINISH();
-  UNPROTECT(1);
+    UNPROTECT(1);
   return result;
 }
-

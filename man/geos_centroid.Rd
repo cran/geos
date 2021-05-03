@@ -6,8 +6,8 @@
 \alias{geos_minimum_width}
 \alias{geos_minimum_clearance_line}
 \alias{geos_minimum_rotated_rectangle}
-\alias{geos_minimum_bounding_circle}
 \alias{geos_unary_union}
+\alias{geos_unary_union_prec}
 \alias{geos_coverage_union}
 \alias{geos_point_on_surface}
 \alias{geos_node}
@@ -17,6 +17,7 @@
 \alias{geos_merge_lines}
 \alias{geos_build_area}
 \alias{geos_envelope}
+\alias{geos_envelope_rct}
 \alias{geos_convex_hull}
 \alias{geos_point_start}
 \alias{geos_point_end}
@@ -40,9 +41,9 @@ geos_minimum_clearance_line(geom)
 
 geos_minimum_rotated_rectangle(geom)
 
-geos_minimum_bounding_circle(geom)
-
 geos_unary_union(geom)
+
+geos_unary_union_prec(geom, grid_size)
 
 geos_coverage_union(geom)
 
@@ -61,6 +62,8 @@ geos_merge_lines(geom)
 geos_build_area(geom)
 
 geos_envelope(geom)
+
+geos_envelope_rct(geom)
 
 geos_convex_hull(geom)
 
@@ -92,15 +95,15 @@ geos_clip_by_rect(geom, rect)
 \arguments{
 \item{geom}{A \link[=as_geos_geometry]{GEOS geometry vector}}
 
+\item{grid_size}{For \verb{_prec()} variants, the grid size such that all vertices of
+the resulting geometry will lie on the grid.}
+
 \item{srid}{An integer spatial reference identifier.}
 
 \item{index}{The index of the point or geometry to extract.}
 
 \item{tolerance}{A minimum distance to use for simplification. Use a higher
 value for more simplification.}
-
-\item{grid_size}{The size of the grid to which coordinates should be
-rounded.}
 
 \item{preserve_topology}{Should topology internal to each feature
 be preserved?}

@@ -19,8 +19,14 @@ test_that("WKT reader works", {
   )
 
   # NULL/NA read/write
-  expect_identical(geos_write_wkt(new_geos_geometry(list(NULL))), NA_character_)
-  expect_identical(geos_read_wkt(NA_character_), new_geos_geometry(list(NULL)))
+  expect_identical(
+    geos_write_wkt(new_geos_geometry(list(NULL), crs = NULL)),
+    NA_character_
+  )
+  expect_identical(
+    geos_read_wkt(NA_character_),
+    new_geos_geometry(list(NULL), crs = NULL)
+  )
 
   # read/write when the internal pointer is NULL
   temp_rds <- tempfile()
@@ -35,6 +41,10 @@ test_that("WKT reader works", {
   # to make sure this doesn't crash R
   really_long_bad_wkt <- strrep("A", 2048)
   expect_error(geos_read_wkt(really_long_bad_wkt), "ParseException")
+})
+
+test_that("wkt reader can specify crs", {
+  expect_identical(wk::wk_crs(geos_read_wkt("POINT (1 1)", crs = 123)), 123)
 })
 
 test_that("WKB reader works", {
@@ -73,10 +83,13 @@ test_that("WKB reader works", {
 
   # NULL/NA read/write
   expect_identical(
-    geos_write_wkb(new_geos_geometry(list(NULL))),
+    geos_write_wkb(new_geos_geometry(list(NULL), crs = NULL)),
     structure(list(NULL), class = "blob")
   )
-  expect_identical(geos_read_wkb(list(NULL)), new_geos_geometry(list(NULL)))
+  expect_identical(
+    geos_read_wkb(list(NULL)),
+    new_geos_geometry(list(NULL), crs = NULL)
+  )
 
   # read/write when the internal pointer is NULL
   temp_rds <- tempfile()
@@ -84,16 +97,38 @@ test_that("WKB reader works", {
   expect_error(geos_write_wkb(readRDS(temp_rds)), "External pointer is not valid")
   unlink(temp_rds)
 
-  # attempt to write empty point
-  expect_error(
-    geos_write_wkb(geos_read_wkt("POINT EMPTY")),
-    "Empty Points cannot be represented"
-  )
+  if (geos_version() >= "3.9.0") {
+    expect_identical(
+      geos_write_wkb(geos_read_wkt("POINT EMPTY"), endian = 1),
+      structure(
+        list(
+          as.raw(
+            c(0x01,
+              0x01, 0x00, 0x00, 0x00,
+              0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf8, 0x7f,
+              0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf8, 0x7f
+            )
+          )
+        ),
+        class = "blob"
+      )
+    )
+  } else {
+    # errors for GEOS < 3.9
+    expect_error(
+      geos_write_wkb(geos_read_wkt("POINT EMPTY")),
+      "Empty Points cannot be represented"
+    )
+  }
 
   # attempt to read invalid WKB
   wkb <- wk::wkt_translate_wkb("POINT (1 1)", endian = 1)
   wkb[[1]][3] <- as.raw(0xff)
   expect_error(geos_read_wkb(wkb), "Unknown WKB type")
+})
+
+test_that("wkb reader can specify crs", {
+  expect_identical(wk::wk_crs(geos_read_wkb(wk::as_wkb("POINT (1 1)"), crs = 123)), 123)
 })
 
 test_that("hex reader/writer works", {
@@ -137,7 +172,15 @@ test_that("hex reader/writer works", {
   )
 
   expect_error(geos_read_hex("not hex"), "ParseException")
-  expect_error(geos_write_hex("POINT EMPTY"), "IllegalArgumentException")
+
+  if (geos_version() >= "3.9.0") {
+    expect_identical(
+      geos_write_hex("POINT EMPTY"),
+      "0101000000000000000000F87F000000000000F87F"
+    )
+  } else {
+    expect_error(geos_write_hex("POINT EMPTY"), "IllegalArgumentException")
+  }
 })
 
 test_that("xy reader/writer works", {
@@ -151,8 +194,18 @@ test_that("xy reader/writer works", {
     list(x = c(0, 0, 0, NA), y = as.numeric(c(1:3, NA)))
   )
 
-  expect_identical(geos_write_xy(new_geos_geometry(list(NULL))), list(x = NA_real_, y = NA_real_))
+  expect_identical(
+    geos_write_xy(new_geos_geometry(list(NULL), crs = NULL)),
+    list(x = NA_real_, y = NA_real_)
+  )
   expect_error(geos_write_xy(geos_read_wkt("LINESTRING (0 0, 1 1)")), "Argument is not a Point")
+})
+
+test_that("hex reader can specify crs", {
+  expect_identical(
+    wk::wk_crs(geos_read_hex("01010000000000000000000000000000000000F03F", crs = 123)),
+    123
+  )
 })
 
 test_that("empty creator works", {
@@ -204,4 +257,9 @@ test_that("empty creator works", {
       "GEOMETRYCOLLECTION EMPTY", NA
     )
   )
+})
+
+test_that("empty creator can specify crs", {
+  expect_identical(wk::wk_crs(geos_empty()), wk::wk_crs_inherit())
+  expect_identical(wk::wk_crs(geos_empty(crs = 123)), 123)
 })

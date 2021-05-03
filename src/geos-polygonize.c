@@ -30,8 +30,7 @@
     GEOS_ERROR("%s", "Error calling polygonize: ");              \
   }                                                              \
                                                                  \
-  GEOS_FINISH();                                                 \
-  return geos_common_geometry_xptr(result);
+    return geos_common_geometry_xptr(result);
 
 
 SEXP geos_c_polygonize(SEXP collection) {
@@ -79,12 +78,11 @@ SEXP geos_c_polygonize_full(SEXP collection) {
 
   // don't know how to make the polygonizer fail
   if (resultGeometry == NULL) {
-    UNPROTECT(4);
+    UNPROTECT(4); // # nocov
     GEOS_ERROR("%s: ", "Error calling polygonize full"); // # nocov
   }
 
-  GEOS_FINISH();
-
+  
   SEXP result = PROTECT(Rf_allocVector(VECSXP, 4));
   SET_VECTOR_ELT(result, 0, resultPtr);
   SET_VECTOR_ELT(result, 1, cutsPtr);

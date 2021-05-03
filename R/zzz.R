@@ -8,13 +8,13 @@
   .Call(geos_c_init)
 
   # Register S3 methods for suggests
-  s3_register("wk::as_wkb", "geos_geometry")
-  s3_register("wk::as_wkt", "geos_geometry")
   s3_register("sf::st_as_sfc", "geos_geometry")
   s3_register("sf::st_as_sf", "geos_geometry")
   s3_register("vctrs::vec_proxy", "geos_geometry")
   s3_register("vctrs::vec_restore", "geos_geometry")
   s3_register("vctrs::vec_ptype_abbr", "geos_geometry")
+  s3_register("vctrs::vec_cast", "geos_geometry")
+  s3_register("vctrs::vec_ptype2", "geos_geometry")
 }
 
 s3_register <- function(generic, class, method = NULL) {

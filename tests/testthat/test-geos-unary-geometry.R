@@ -1,4 +1,11 @@
 
+test_that("pattern for propagating crs works", {
+  expect_identical(
+    wk::wk_crs(geos_centroid(as_geos_geometry("POINT (0 1)", crs = 12345))),
+    12345
+  )
+})
+
 test_that("transformers work", {
   expect_identical(
     geos_write_wkt(geos_centroid(c("POINT (0 1)", "LINESTRING (0 0, 1 1)", NA))),
@@ -33,10 +40,11 @@ test_that("transformers work", {
   )
 
   expect_identical(
-    geos_write_wkt(
-      geos_unary_union(c("MULTIPOLYGON (((0 0, 1 0, 0.5 0.5, 0 0)), ((0 0, 1 0, 0.5 0.5, 0 0)))", NA))
+    geos_equals(
+      geos_unary_union(c("MULTIPOLYGON (((0 0, 1 0, 0.5 0.5, 0 0)), ((0 0, 1 0, 0.5 0.5, 0 0)))", NA)),
+      c("POLYGON ((1 0, 0 0, 0.5 0.5, 1 0))", NA)
     ),
-    c("POLYGON ((1 0, 0 0, 0.5 0.5, 1 0))", NA)
+    c(TRUE, NA)
   )
 
   expect_identical(
@@ -145,6 +153,70 @@ test_that("transformers work", {
   )
 })
 
+test_that("geos_envelope_rct() works", {
+  expect_identical(
+    geos_envelope_rct(c("LINESTRING (0 0, 1 2)", "LINESTRING EMPTY", NA)),
+    wk::rct(
+      c(0, Inf, NA),
+      c(0, Inf, NA),
+      c(1, -Inf, NA),
+      c(2, -Inf, NA)
+    )
+  )
+})
+
+test_that("geos_unary_union_prec() works", {
+  if ((geos_version(runtime = TRUE) >= "3.9.1") && (geos_version(runtime = FALSE) >= "3.9.1")) {
+    expect_identical(
+      geos_equals(
+        geos_unary_union_prec(
+          c("MULTIPOLYGON (((0 0, 1 0, 0.5 0.5, 0 0)), ((0 0, 1 0, 0.5 0.5, 0 0)))", NA),
+          0.1
+        ),
+        c("POLYGON ((1 0, 0 0, 0.5 0.5, 1 0))", NA)
+      ),
+      c(TRUE, NA)
+    )
+  } else if(geos_version(runtime = FALSE) >= "3.9.1") {
+    expect_error(
+      geos_unary_union_prec("POLYGON ((0 0, 1 0, 1 1, 0 1, 0 0))", 0.01),
+      "requires 'libgeos'"
+    )
+  } else {
+    expect_error(
+      geos_unary_union_prec("POLYGON ((0 0, 1 0, 1 1, 0 1, 0 0))", 0.01),
+      "built against 'libgeos'"
+    )
+  }
+})
+
+test_that("geos_maximum_inscribed_circle_spec() works", {
+  if ((geos_version(runtime = TRUE) >= "3.9.1") && (geos_version(runtime = FALSE) >= "3.9.1")) {
+    expect_equal(
+      geos_length(
+        geos_maximum_inscribed_circle_spec("POLYGON ((0 0, 1 0, 1 1, 0 1, 0 0))", 0.01)
+      ),
+      0.5
+    )
+
+    expect_identical(
+      geos_maximum_inscribed_crc("POLYGON ((0 0, 1 0, 1 1, 0 1, 0 0))", 0.01),
+      wk::crc(0.5, 0.5, 0.5)
+    )
+
+  } else if(geos_version(runtime = FALSE) >= "3.9.1") {
+    expect_error(
+      geos_maximum_inscribed_circle_spec("POLYGON ((0 0, 1 0, 1 1, 0 1, 0 0))", 0.01),
+      "requires 'libgeos'"
+    )
+  } else {
+    expect_error(
+      geos_maximum_inscribed_circle_spec("POLYGON ((0 0, 1 0, 1 1, 0 1, 0 0))", 0.01),
+      "built against 'libgeos'"
+    )
+  }
+})
+
 test_that("transformers with atomic param work", {
   expect_identical(
     geos_write_wkt(geos_interpolate(c("LINESTRING (0 0, 0 10, 10 10)", NA), 11)),
@@ -215,16 +287,19 @@ test_that("transformers with atomic param work", {
 
 test_that("set precision works", {
   expect_identical(
-    geos_write_wkt(
+    geos_equals(
       geos_set_precision(
         c(NA, "POINT (0.1 1.1)", "POINT (0.1 1.1)", "POINT (0.1 1.1)"),
         c(0, NA, 0, 1)
-      )
+      ),
+      c(NA, NA, "POINT (0.1 1.1)", "POINT (0 1)")
     ),
-    c(NA, NA, "POINT (0.1 1.1)", "POINT (0 1)")
+    c(NA, NA, TRUE, TRUE)
   )
 
-  expect_error(geos_set_precision("POINT (0 0)", -1), "IllegalArgumentException")
+  if (geos_version() < "3.9.0") {
+    expect_error(geos_set_precision("POINT (0 0)", -1), "IllegalArgumentException")
+  }
 
   odd_snap_poly <-
     "POLYGON ((0 0, 0.9 0, 0 0.9, 0 0), (0.46 0.46, 0.3 0.46, 0.46 0.3, 0.46 0.46))"
@@ -255,7 +330,19 @@ test_that("bounding circle works", {
   expect_equal(geos_xmax(circle), c(NA, sqrt(2)))
   expect_equal(geos_ymax(circle), c(NA, sqrt(2)))
 
+  skip_if(identical(Sys.getenv("R_GEOS_SKIP_KNOWN_LEAK"), "true"))
   expect_error(geos_minimum_bounding_circle("POINT (nan inf)"), "encountered NaN/Inf")
+})
+
+test_that("bounding crc works", {
+  expect_identical(
+    geos_minimum_bounding_crc(c(NA, "LINESTRING (-1 -1, 1 1)")),
+    wk::crc(
+      c(NA, 0),
+      c(NA, 0),
+      c(NA, sqrt(2))
+    )
+  )
 })
 
 test_that("clip by rect works", {
@@ -287,6 +374,19 @@ test_that("clip by rect works", {
   expect_error(
     geos_write_wkt(geos_clip_by_rect(line, list(Inf, Inf, -Inf, -Inf))),
     "Clipping rectangle must be non-empty"
+  )
+})
+
+test_that("geos_clip_by_rect() can use a wk::rct()", {
+  line <- "LINESTRING (-1 5, 11 5)"
+  expect_identical(
+    geos_write_wkt(geos_clip_by_rect(c(NA, line), wk::rct(0, 0, 10, 10))),
+    c(NA, "LINESTRING (0 5, 10 5)")
+  )
+
+  expect_error(
+    geos_clip_by_rect(c(NA, line), wk::rct(0, 0, 10, 10, crs = 2928)),
+    "are not equal"
   )
 })
 
@@ -323,6 +423,7 @@ test_that("geos_buffer errors with bad params", {
   params$join_style = 10L
   expect_error(geos_buffer("POINT (0 0)", 1, params = params), "Invalid buffer join")
 
+  skip_if(identical(Sys.getenv("R_GEOS_SKIP_KNOWN_LEAK"), "true"))
   expect_error(geos_buffer("POINT (0 0)", Inf), "encountered NaN/Inf")
 })
 
@@ -341,8 +442,8 @@ test_that("triangulation works", {
     )
   )
 
-  expect_error(geos_delaunay_triangles("POINT (nan inf)"), "Unknown error")
-  expect_error(geos_delaunay_edges("POINT (nan inf)"), "Unknown error")
+  expect_error(geos_delaunay_triangles("POINT (nan inf)"), "Unknown error|LocateFailureException")
+  expect_error(geos_delaunay_edges("POINT (nan inf)"), "Unknown error|LocateFailureException")
   expect_identical(geos_delaunay_triangles(NA_character_), geos_read_wkt(NA_character_))
   expect_identical(geos_delaunay_edges(NA_character_), geos_read_wkt(NA_character_))
 })
@@ -350,28 +451,28 @@ test_that("triangulation works", {
 test_that("voronoi diagrams work", {
   expect_true(
     geos_equals(
-      geos_voronoi_polygons("MULTIPOINT (0 0, 1 0, 0 1)"),
+      geos_voronoi_polygons("MULTIPOINT (0 0, 1 0, 0 3)"),
       geos_voronoi_polygons(
-        "MULTIPOINT (0 0, 1 0, 0 1)",
+        "MULTIPOINT (0 0, 1 0, 0 3)",
         # this is the default env
-        env = "POLYGON ((-1 -1, 2 -1, 2 2, -1 2, -1 -1))"
+        env = "POLYGON ((-1 -1, 2 -1, 2 4, -1 4, -1 -1))"
       )
     )
   )
 
   expect_true(
     geos_equals(
-      geos_voronoi_edges("MULTIPOINT (0 0, 1 0, 0 1)"),
+      geos_voronoi_edges("MULTIPOINT (0 0, 1 0, 0 3)"),
       geos_voronoi_edges(
-        "MULTIPOINT (0 0, 1 0, 0 1)",
+        "MULTIPOINT (0 0, 1 0, 0 3)",
         # this is the default env
-        env = "POLYGON ((-1 -1, 2 -1, 2 2, -1 2, -1 -1))"
+        env = "POLYGON ((-1 -1, 2 -1, 2 4, -1 4, -1 -1))"
       )
     )
   )
 
-  expect_error(geos_voronoi_polygons("POINT (nan inf)"), "Unknown error")
-  expect_error(geos_voronoi_edges("POINT (nan inf)"), "Unknown error")
+  expect_error(geos_voronoi_polygons("POINT (nan inf)"), "Unknown error|LocateFailureException")
+  expect_error(geos_voronoi_edges("POINT (nan inf)"), "Unknown error|LocateFailureException")
   expect_identical(geos_voronoi_polygons(NA_character_), geos_read_wkt(NA_character_))
   expect_identical(geos_voronoi_edges(NA_character_), geos_read_wkt(NA_character_))
 

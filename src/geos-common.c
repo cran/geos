@@ -18,15 +18,33 @@ void geos_common_handle_error(const char *message, void* userdata) {
 }
 
 // initialize (actual value is set in R_init_geos())
-GEOSContextHandle_t geos_gc_handle = NULL;
+GEOSContextHandle_t globalHandle = NULL;
+char globalErrorMessage[GEOS_ERROR_MESSAGE_BUFFER_SIZE];
 
 void geos_common_release_geometry(SEXP externalPtr) {
+  // There may be a prepared version of the geometry stored in the Tag slot
+  // that should be destroyed first
+  SEXP prepExternalPtr = R_ExternalPtrTag(externalPtr);
+  if (prepExternalPtr != R_NilValue) {
+    const GEOSPreparedGeometry* prepared = (const GEOSPreparedGeometry*) R_ExternalPtrAddr(prepExternalPtr);
+    if ((prepared != NULL) && (globalHandle != NULL)) {
+      GEOSPreparedGeom_destroy_r(globalHandle, prepared);
+    } else if (prepared != NULL) {
+      GEOSContextHandle_t handle = GEOS_init_r(); // # nocov
+      GEOSPreparedGeom_destroy_r(handle, prepared); // # nocov
+      GEOS_finish_r(handle); // # nocov
+    }
+  }
+
   GEOSGeometry* geometry = (GEOSGeometry*) R_ExternalPtrAddr(externalPtr);
-  // geometry should not be NULL, but R will crash if NULL is passed here
-  // this can occur if this object is saved and reloaded, in which
-  // case this function quietly does nothing
-  if (geometry != NULL) {
-    GEOSGeom_destroy_r(geos_gc_handle, geometry);
+  if ((geometry != NULL) && (globalHandle != NULL)) {
+    GEOSGeom_destroy_r(globalHandle, geometry);
+  } else if (geometry != NULL) {
+    // in the unlikely event that the garbage collector runs after unload
+    // create a handle just for this (most likely during development)
+    GEOSContextHandle_t handle = GEOS_init_r(); // # nocov
+    GEOSGeom_destroy_r(handle, geometry); // # nocov
+    GEOS_finish_r(handle); // # nocov
   }
 }
 
@@ -36,6 +54,22 @@ SEXP geos_common_geometry_xptr(GEOSGeometry* geometry) {
   return externalPtr;
 }
 
+// Use GEOS-style error message (set global + return NULL)
+const GEOSPreparedGeometry* geos_common_geometry_prepared(SEXP externalPtr) {
+  GEOSGeometry* geometry = (GEOSGeometry*) R_ExternalPtrAddr(externalPtr);
+
+  SEXP tag = R_ExternalPtrTag(externalPtr);
+  if (tag == R_NilValue) {
+    const GEOSPreparedGeometry* prepared = GEOSPrepare_r(globalHandle, geometry);
+    // don't register a finalizer because the finalizer of externalPtr will
+    // destroy the prepared geom
+    R_SetExternalPtrTag(externalPtr, R_MakeExternalPtr((void*) prepared, R_NilValue, R_NilValue));
+    return prepared;
+  } else {
+    return (const GEOSPreparedGeometry*) R_ExternalPtrAddr(tag);
+  }
+}
+
 SEXP geos_common_child_geometry_xptr(const GEOSGeometry* geometry, SEXP parent) {
   return R_MakeExternalPtr((void *) geometry, parent, R_NilValue);
 }
@@ -43,7 +77,7 @@ SEXP geos_common_child_geometry_xptr(const GEOSGeometry* geometry, SEXP parent) 
 void geos_common_release_tree(SEXP externalPtr) {
   GEOSSTRtree* tree = (GEOSSTRtree*) R_ExternalPtrAddr(externalPtr);
   if (tree != NULL) {
-    GEOSSTRtree_destroy_r(geos_gc_handle, tree);
+    GEOSSTRtree_destroy_r(globalHandle, tree);
   }
 }
 

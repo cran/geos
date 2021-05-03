@@ -1,5 +1,6 @@
 
 #include "libgeos.h"
+#include "wk-v1.h"
 #include "geos-common.h"
 #include <Rinternals.h>
 
@@ -8,6 +9,7 @@ extern SEXP geos_c_distance(SEXP geom1, SEXP geom2);
 extern SEXP geos_c_distance_indexed(SEXP geom1, SEXP geom2);
 extern SEXP geos_c_distance_hausdorff(SEXP geom1, SEXP geom2);
 extern SEXP geos_c_distance_frechet(SEXP geom1, SEXP geom2);
+extern SEXP geos_c_prepared_distance(SEXP geom1, SEXP geom2);
 extern SEXP geos_c_distance_hausdorff_densify(SEXP geom1, SEXP geom2, SEXP densifyFrac);
 extern SEXP geos_c_distance_frechet_densify(SEXP geom1, SEXP geom2, SEXP densifyFrac);
 extern SEXP geos_c_project(SEXP geom1, SEXP geom2);
@@ -40,8 +42,15 @@ extern SEXP geos_c_difference(SEXP geom1, SEXP geom2);
 extern SEXP geos_c_sym_difference(SEXP geom1, SEXP geom2);
 extern SEXP geos_c_union(SEXP geom1, SEXP geom2);
 extern SEXP geos_c_shared_paths(SEXP geom1, SEXP geom2);
-extern SEXP geos_c_snap(SEXP geom1, SEXP geom2, SEXP tolerance);
-extern SEXP geos_c_clearance_line_between(SEXP geom1, SEXP geom2);
+extern SEXP geos_c_snap(SEXP geom1, SEXP geom2, SEXP param);
+extern SEXP geos_c_intersection_prec(SEXP geom1, SEXP geom2, SEXP param);
+extern SEXP geos_c_difference_prec(SEXP geom1, SEXP geom2, SEXP param);
+extern SEXP geos_c_sym_difference_prec(SEXP geom1, SEXP geom2, SEXP param);
+extern SEXP geos_c_union_prec(SEXP geom1, SEXP geom2, SEXP param);
+extern SEXP geos_c_largest_empty_circle(SEXP geom1, SEXP geom2, SEXP param);
+extern SEXP geos_c_clearance_line_between(SEXP geom1, SEXP geom2, SEXP prepare);
+extern SEXP geos_c_geos_geometry_is_null(SEXP geom);
+extern SEXP geos_c_geos_geometry_is_null_or_xptr(SEXP geom);
 extern SEXP geos_c_read_wkt(SEXP input);
 extern SEXP geos_c_write_wkt(SEXP input, SEXP includeZ, SEXP precision, SEXP trim);
 extern SEXP geos_c_read_wkb(SEXP input);
@@ -60,7 +69,7 @@ extern SEXP geos_c_polygonize_cut_edges(SEXP collection);
 extern SEXP geos_c_polygonize_full(SEXP collection);
 extern SEXP geos_c_segment_intersection(SEXP Sax0, SEXP Say0, SEXP Sax1, SEXP Say1, SEXP Sbx0, SEXP Sby0, SEXP Sbx1, SEXP Sby1);
 extern SEXP geos_c_orientation_index(SEXP SAx, SEXP SAy, SEXP SBx, SEXP SBy, SEXP SPx, SEXP SPy);
-extern SEXP geos_c_strtree_create(SEXP geom);
+extern SEXP geos_c_strtree_create(SEXP geom, SEXP node_capacity);
 extern SEXP geos_c_strtree_data(SEXP treeExternalPtr);
 extern SEXP geos_c_strtree_query(SEXP treeExternalPtr, SEXP geom);
 extern SEXP geos_c_touches_matrix(SEXP geom, SEXP treeExternalPtr);
@@ -132,6 +141,8 @@ extern SEXP geos_c_interpolate_normalized(SEXP geom, SEXP param);
 extern SEXP geos_c_point_n(SEXP geom, SEXP param);
 extern SEXP geos_c_simplify(SEXP geom, SEXP param);
 extern SEXP geos_c_simplify_preserve_topology(SEXP geom, SEXP param);
+extern SEXP geos_c_unary_union_prec(SEXP geom, SEXP param);
+extern SEXP geos_c_maximum_inscribed_circle(SEXP geom, SEXP param);
 extern SEXP geos_c_set_precision(SEXP geom, SEXP param, SEXP preserveTopology, SEXP keepCollapsed);
 extern SEXP geos_c_set_srid(SEXP geom, SEXP srid);
 extern SEXP geos_c_normalize(SEXP geom);
@@ -143,6 +154,8 @@ extern SEXP geos_c_buffer(SEXP geom, SEXP distance, SEXP params);
 extern SEXP geos_c_offset_curve(SEXP geom, SEXP distance, SEXP params);
 extern SEXP geos_c_geometry_n(SEXP geom, SEXP n);
 extern SEXP geos_c_ring_n(SEXP geom, SEXP n);
+extern SEXP geos_c_geos_writer_new();
+extern SEXP geos_c_wk_read_geos_geometry(SEXP geom, SEXP handler_xptr);
 extern SEXP geos_c_init();
 extern SEXP geos_c_version_runtime();
 extern SEXP geos_c_version_build();
@@ -152,6 +165,7 @@ static const R_CallMethodDef CallEntries[] = {
   {"geos_c_distance_indexed", (DL_FUNC) &geos_c_distance_indexed, 2},
   {"geos_c_distance_hausdorff", (DL_FUNC) &geos_c_distance_hausdorff, 2},
   {"geos_c_distance_frechet", (DL_FUNC) &geos_c_distance_frechet, 2},
+  {"geos_c_prepared_distance", (DL_FUNC) &geos_c_prepared_distance, 2},
   {"geos_c_distance_hausdorff_densify", (DL_FUNC) &geos_c_distance_hausdorff_densify, 3},
   {"geos_c_distance_frechet_densify", (DL_FUNC) &geos_c_distance_frechet_densify, 3},
   {"geos_c_project", (DL_FUNC) &geos_c_project, 2},
@@ -185,7 +199,14 @@ static const R_CallMethodDef CallEntries[] = {
   {"geos_c_union", (DL_FUNC) &geos_c_union, 2},
   {"geos_c_shared_paths", (DL_FUNC) &geos_c_shared_paths, 2},
   {"geos_c_snap", (DL_FUNC) &geos_c_snap, 3},
-  {"geos_c_clearance_line_between", (DL_FUNC) &geos_c_clearance_line_between, 2},
+  {"geos_c_intersection_prec", (DL_FUNC) &geos_c_intersection_prec, 3},
+  {"geos_c_difference_prec", (DL_FUNC) &geos_c_difference_prec, 3},
+  {"geos_c_sym_difference_prec", (DL_FUNC) &geos_c_sym_difference_prec, 3},
+  {"geos_c_union_prec", (DL_FUNC) &geos_c_union_prec, 3},
+  {"geos_c_largest_empty_circle", (DL_FUNC) &geos_c_largest_empty_circle, 3},
+  {"geos_c_clearance_line_between", (DL_FUNC) &geos_c_clearance_line_between, 3},
+  {"geos_c_geos_geometry_is_null", (DL_FUNC) &geos_c_geos_geometry_is_null, 1},
+  {"geos_c_geos_geometry_is_null_or_xptr", (DL_FUNC) &geos_c_geos_geometry_is_null_or_xptr, 1},
   {"geos_c_read_wkt", (DL_FUNC) &geos_c_read_wkt, 1},
   {"geos_c_write_wkt", (DL_FUNC) &geos_c_write_wkt, 4},
   {"geos_c_read_wkb", (DL_FUNC) &geos_c_read_wkb, 1},
@@ -204,7 +225,7 @@ static const R_CallMethodDef CallEntries[] = {
   {"geos_c_polygonize_full", (DL_FUNC) &geos_c_polygonize_full, 1},
   {"geos_c_segment_intersection", (DL_FUNC) &geos_c_segment_intersection, 8},
   {"geos_c_orientation_index", (DL_FUNC) &geos_c_orientation_index, 6},
-  {"geos_c_strtree_create", (DL_FUNC) &geos_c_strtree_create, 1},
+  {"geos_c_strtree_create", (DL_FUNC) &geos_c_strtree_create, 2},
   {"geos_c_strtree_data", (DL_FUNC) &geos_c_strtree_data, 1},
   {"geos_c_strtree_query", (DL_FUNC) &geos_c_strtree_query, 2},
   {"geos_c_touches_matrix", (DL_FUNC) &geos_c_touches_matrix, 2},
@@ -276,6 +297,8 @@ static const R_CallMethodDef CallEntries[] = {
   {"geos_c_point_n", (DL_FUNC) &geos_c_point_n, 2},
   {"geos_c_simplify", (DL_FUNC) &geos_c_simplify, 2},
   {"geos_c_simplify_preserve_topology", (DL_FUNC) &geos_c_simplify_preserve_topology, 2},
+  {"geos_c_unary_union_prec", (DL_FUNC) &geos_c_unary_union_prec, 2},
+  {"geos_c_maximum_inscribed_circle", (DL_FUNC) &geos_c_maximum_inscribed_circle, 2},
   {"geos_c_set_precision", (DL_FUNC) &geos_c_set_precision, 4},
   {"geos_c_set_srid", (DL_FUNC) &geos_c_set_srid, 2},
   {"geos_c_normalize", (DL_FUNC) &geos_c_normalize, 1},
@@ -287,6 +310,8 @@ static const R_CallMethodDef CallEntries[] = {
   {"geos_c_offset_curve", (DL_FUNC) &geos_c_offset_curve, 3},
   {"geos_c_geometry_n", (DL_FUNC) &geos_c_geometry_n, 2},
   {"geos_c_ring_n", (DL_FUNC) &geos_c_ring_n, 2},
+  {"geos_c_geos_writer_new", (DL_FUNC) &geos_c_geos_writer_new, 0},
+  {"geos_c_wk_read_geos_geometry", (DL_FUNC) &geos_c_wk_read_geos_geometry, 2},
   {"geos_c_init", (DL_FUNC) &geos_c_init, 0},
   {"geos_c_version_runtime", (DL_FUNC) &geos_c_version_runtime, 0},
   {"geos_c_version_build", (DL_FUNC) &geos_c_version_build, 0},
@@ -299,16 +324,25 @@ void R_init_geos(DllInfo *dll) {
   R_useDynamicSymbols(dll, FALSE);
 }
 
+// # nocov start
+void R_unload_geos(DllInfo *dll) {
+  if (globalHandle != NULL) {
+    GEOS_finish_r(globalHandle);
+    globalHandle = NULL;
+  }
+}
+// # nocov end
+
 SEXP geos_c_init() {
   // load functions into the (currently NULL) function pointers in libgeos-impl.c
   libgeos_init_api();
 
-  // create a context handle for the garbage collector
-  // this is technically leaked because it is never destroyed,
-  // but it is not safe to set it back to NULL on package unload
-  // because there might still be geometries that need to be
-  // garbage collected
-  geos_gc_handle = GEOS_init_r();
+  // create the global handle
+  if (globalHandle == NULL) {
+    globalHandle = GEOS_init_r();
+    GEOSContext_setErrorMessageHandler_r(globalHandle, &geos_common_handle_error, globalErrorMessage);
+    memset(globalErrorMessage, 0, sizeof(globalErrorMessage));
+  }
 
   return R_NilValue;
 }
