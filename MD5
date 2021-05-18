@@ -1,7 +1,7 @@
-17d3234587153351503461227ae9f5e2 *DESCRIPTION
+d2413d1ac8c220f433855ffef7ae3d95 *DESCRIPTION
 3af0d5f6726a14ed40722905f3202a79 *LICENSE
 aacf46301dfbf57602abc9574b5cdf0e *NAMESPACE
-1090ab2cab17c1b8ad5660a846997ec4 *NEWS.md
+8e17934cb0175a905199f86b9cf345ed *NEWS.md
 bbc8b54b6971d52997237b29e66c310f *R/compat-sf.R
 039f471289684050c463aeb38bd07d00 *R/compat-vctrs.R
 16d2108b752df911305cadb8a3d1edc8 *R/compat-wk.R
@@ -21,7 +21,7 @@ e0dc9fccf07a6ec78797e537f9bfe541 *R/geos-unary-atomic.R
 4fa7d4e78162072582ac9483416615e5 *R/geos-version.R
 19a12fa5c2ff4628f54169bbb59cb9f8 *R/utils.R
 5bdb8b16f7a549bffa1f8cc446f2f8b7 *R/zzz.R
-1d33b41ff8d55d4420c0127c7720ef51 *README.md
+99dab42f844d5b5b0a64065419325683 *README.md
 2f61fb4e8958cf56c2428aa4a25ddda0 *man/as_geos_geometry.Rd
 3f48a396d09b30ca8de1cd56821cf62a *man/figures/README-ex-plot-1.png
 7b443e2f5c70d3cabe8e2dd66c2ff681 *man/geos-package.Rd
@@ -59,7 +59,7 @@ f21308dfb53ace6e19db8ed1c2e6eea8 *src/geos-io.c
 aeb955f87c0c0159e91359f5879ed494 *src/geos-make.c
 63c12f4f8e6b4d04271f060963ec4af3 *src/geos-polygonize.c
 a41ed8e5362661a9196d1ee6deb8c67c *src/geos-segment.c
-9fed9d8014260b4a1687a42c153dae82 *src/geos-strtree.c
+15b8345889e1464742fa4ed129fc7e37 *src/geos-strtree.c
 d67e577761dd2ec7940b2f6ba2876704 *src/geos-unary-atomic.c
 4eb231dfdc55dcb812a321c2c8ca811c *src/geos-unary-geometry.c
 c7fbf583b66cc935080a4363ea46561b *src/geos-writer.c
@@ -68,7 +68,7 @@ c7fbf583b66cc935080a4363ea46561b *src/geos-writer.c
 5acd0c6f99dbda53125ce4fdd3600121 *src/libgeos-impl.c
 3ff04996080488941707e8fd75d50d02 *src/wk-impl.c
 660db739bbfc0dbe2d2abff49dcfaa68 *tests/testthat.R
-76b34ca70d90fd77655d453b877f90cb *tests/testthat/Rplots.pdf
+5a39469a05f5ebc8e7dbcd97a21a4848 *tests/testthat/Rplots.pdf
 e093db64e8ff0fce295b845050ba158f *tests/testthat/test-compat-sf.R
 8e21bdd344f452972f8cfad464b00dc3 *tests/testthat/test-compat-vctrs.R
 22169217b5ed96cf56151a17e9a4bfe2 *tests/testthat/test-compat-wk.R
