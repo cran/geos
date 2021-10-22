@@ -1,3 +1,7 @@
+# geos 0.1.2
+
+* Update tests to pass on GEOS 3.9.1 and 3.10.0 (#54).
+
 # geos 0.1.1
 
 * Fixed an issue with the internals of the strtree object

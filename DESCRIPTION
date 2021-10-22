@@ -1,6 +1,6 @@
 Package: geos
 Title: Open Source Geometry Engine ('GEOS') R API
-Version: 0.1.1
+Version: 0.1.2
 Authors@R: 
     c(
       person(given = "Dewey",
@@ -22,7 +22,7 @@ Description: Provides an R API to the Open Source Geometry Engine
   and export geometry vectors to other spatial formats are provided.
 License: MIT + file LICENSE
 Encoding: UTF-8
-RoxygenNote: 7.1.1
+RoxygenNote: 7.1.2
 Suggests: testthat (>= 2.1.0), vctrs, sf, wkutils
 Imports: libgeos (>= 3.8.1-4), wk (>= 0.4.1)
 URL: https://paleolimbot.github.io/geos/,
@@ -30,9 +30,9 @@ URL: https://paleolimbot.github.io/geos/,
 BugReports: https://github.com/paleolimbot/geos/issues
 LinkingTo: libgeos, wk
 NeedsCompilation: yes
-Packaged: 2021-05-17 20:47:45 UTC; dewey
+Packaged: 2021-10-21 15:06:19 UTC; deweydunnington
 Author: Dewey Dunnington [aut, cre] (<https://orcid.org/0000-0002-9415-4582>),
   Edzer Pebesma [aut] (<https://orcid.org/0000-0001-8049-7069>)
 Maintainer: Dewey Dunnington <dewey@fishandwhistle.net>
 Repository: CRAN
-Date/Publication: 2021-05-18 15:40:16 UTC
+Date/Publication: 2021-10-22 08:50:05 UTC
