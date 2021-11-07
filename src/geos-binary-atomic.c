@@ -150,7 +150,8 @@ SEXP geos_c_distance_frechet_densify(SEXP geom1, SEXP geom2, SEXP densifyFrac) {
 
 // project and project _normalized both return their result rather than use a
 // pointer arg (-1 for error, but this is undocumented)
-#define GEOS_BINARY_REAL_RETURN(_func)                                        \
+// empty points cause a segfault so we have to check for them (return NaN)
+#define GEOS_PROJECT_BINARY_REAL_RETURN(_func)                                \
   R_xlen_t size = Rf_xlength(geom1);                                          \
   SEXP result = PROTECT(Rf_allocVector(REALSXP, size));                       \
   double* pResult = REAL(result);                                             \
@@ -176,23 +177,28 @@ SEXP geos_c_distance_frechet_densify(SEXP geom1, SEXP geom2, SEXP densifyFrac) {
     geometry2 = (GEOSGeometry*) R_ExternalPtrAddr(item2);                     \
     GEOS_CHECK_GEOMETRY(geometry2, i);                                        \
                                                                               \
+    if (GEOSisEmpty_r(handle, geometry1) || GEOSisEmpty_r(handle, geometry2)) { \
+      pResult[i] = R_NaN;                                                     \
+      continue;                                                               \
+    }                                                                         \
+                                                                              \
     itemResult = _func(handle, geometry1, geometry2);                         \
     if (itemResult == -1) {                                                   \
-      Rf_error("[%d] %s", i + 1, globalErrorMessage);                                           \
+      Rf_error("[%d] %s", i + 1, globalErrorMessage);                         \
     }                                                                         \
                                                                               \
     pResult[i] = itemResult;                                                  \
   }                                                                           \
                                                                               \
-    UNPROTECT(1);                                                               \
+  UNPROTECT(1);                                                               \
   return result;
 
 SEXP geos_c_project(SEXP geom1, SEXP geom2) {
-  GEOS_BINARY_REAL_RETURN(GEOSProject_r);
+  GEOS_PROJECT_BINARY_REAL_RETURN(GEOSProject_r);
 }
 
 SEXP geos_c_project_normalized(SEXP geom1, SEXP geom2) {
-  GEOS_BINARY_REAL_RETURN(GEOSProjectNormalized_r);
+  GEOS_PROJECT_BINARY_REAL_RETURN(GEOSProjectNormalized_r);
 }
 
 
@@ -273,7 +279,8 @@ SEXP geos_c_covered_by(SEXP geom1, SEXP geom2) {
   GEOS_BINARY_PREDICATE(GEOSCoveredBy_r);
 }
 
-// equals exact is the odd one out here because it takes a single parameter
+// equals exact and distance within are the odd ones out here
+// because it takes a single parameter
 SEXP geos_c_equals_exact(SEXP geom1, SEXP geom2, SEXP tolerance) {
   R_xlen_t size = Rf_xlength(geom1);
   SEXP result = PROTECT(Rf_allocVector(LGLSXP, size));
@@ -314,8 +321,57 @@ SEXP geos_c_equals_exact(SEXP geom1, SEXP geom2, SEXP tolerance) {
   return result;
 }
 
+SEXP geos_c_is_within_distance(SEXP geom1, SEXP geom2, SEXP tolerance) {
+#if LIBGEOS_VERSION_COMPILE_INT >= LIBGEOS_VERSION_INT(3, 10, 0)
+  if (libgeos_version_int() < LIBGEOS_VERSION_INT(3, 10, 0)) {
+    ERROR_OLD_LIBGEOS("GEOSDistanceWithin_r()", "3.10.0");
+  }
 
-#define GEOS_PREPARED_BINARY_PREDICATE(_func)                                        \
+  R_xlen_t size = Rf_xlength(geom1);
+  SEXP result = PROTECT(Rf_allocVector(LGLSXP, size));
+  int* pResult = LOGICAL(result);
+  double* pTolerance = REAL(tolerance);
+
+  GEOS_INIT();
+
+  SEXP item1;
+  SEXP item2;
+  GEOSGeometry* geometry1;
+  GEOSGeometry* geometry2;
+  for (R_xlen_t i = 0; i < size; i++) {
+    item1 = VECTOR_ELT(geom1, i);
+    item2 = VECTOR_ELT(geom2, i);
+
+    if (item1 == R_NilValue || item2 == R_NilValue || ISNA(pTolerance[i])) {
+      pResult[i] = NA_INTEGER;
+      continue;
+    }
+
+    geometry1 = (GEOSGeometry*) R_ExternalPtrAddr(item1);
+    GEOS_CHECK_GEOMETRY(geometry1, i);
+    geometry2 = (GEOSGeometry*) R_ExternalPtrAddr(item2);
+    GEOS_CHECK_GEOMETRY(geometry2, i);
+
+    int resultCode = GEOSDistanceWithin_r(handle, geometry1, geometry2, pTolerance[i]);
+
+    // don't know how to make this fire
+    if (resultCode == 2) {
+      Rf_error("[%d] %s", i + 1, globalErrorMessage); // # nocov
+    }
+
+    pResult[i] = resultCode;
+  }
+
+  UNPROTECT(1);
+  return result;
+
+#else
+  ERROR_OLD_LIBGEOS_BUILD("GEOSDistanceWithin_r()", "3.10.0");
+#endif
+}
+
+
+#define GEOS_PREPARED_BINARY_PREDICATE(_func)                               \
 R_xlen_t size = Rf_xlength(geom1);                                          \
 SEXP result = PROTECT(Rf_allocVector(LGLSXP, size));                        \
 int* pResult = INTEGER(result);                                             \
@@ -392,6 +448,57 @@ SEXP geos_c_prepared_covers(SEXP geom1, SEXP geom2) {
 
 SEXP geos_c_prepared_covered_by(SEXP geom1, SEXP geom2) {
   GEOS_PREPARED_BINARY_PREDICATE(GEOSPreparedCoveredBy_r);
+}
+
+// odd one out because it has a parameter
+SEXP geos_c_prepared_is_within_distance(SEXP geom1, SEXP geom2, SEXP tolerance) {
+#if LIBGEOS_VERSION_COMPILE_INT >= LIBGEOS_VERSION_INT(3, 10, 0)
+  if (libgeos_version_int() < LIBGEOS_VERSION_INT(3, 10, 0)) {
+    ERROR_OLD_LIBGEOS("GEOSPreparedDistanceWithin_r()", "3.10.0");
+  }
+
+  R_xlen_t size = Rf_xlength(geom1);
+  SEXP result = PROTECT(Rf_allocVector(LGLSXP, size));
+  int* pResult = LOGICAL(result);
+  double* pTolerance = REAL(tolerance);
+
+  GEOS_INIT();
+
+  SEXP item1;
+  SEXP item2;
+  GEOSGeometry* geometry1;
+  GEOSGeometry* geometry2;
+  for (R_xlen_t i = 0; i < size; i++) {
+    item1 = VECTOR_ELT(geom1, i);
+    item2 = VECTOR_ELT(geom2, i);
+
+    if (item1 == R_NilValue || item2 == R_NilValue || ISNA(pTolerance[i])) {
+      pResult[i] = NA_INTEGER;
+      continue;
+    }
+
+    geometry1 = (GEOSGeometry*) R_ExternalPtrAddr(item1);
+    GEOS_CHECK_GEOMETRY(geometry1, i);
+    geometry2 = (GEOSGeometry*) R_ExternalPtrAddr(item2);
+    GEOS_CHECK_GEOMETRY(geometry2, i);
+
+    const GEOSPreparedGeometry* prepared = geos_common_geometry_prepared(item1);
+    if (prepared == NULL) {
+      Rf_error("[%d] %s", i + 1, globalErrorMessage);
+    }
+    int resultCode = GEOSPreparedDistanceWithin_r(handle, prepared, geometry2, pTolerance[i]);
+    if (resultCode == 2) {
+      Rf_error("[%d] %s", i + 1, globalErrorMessage);
+    }
+    pResult[i] = resultCode;
+  }
+
+  UNPROTECT(1);
+  return result;
+
+#else
+  ERROR_OLD_LIBGEOS_BUILD("GEOSPreparedDistanceWithin_r()", "3.10.0");
+#endif
 }
 
 // DE9IM relationships

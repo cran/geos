@@ -37,6 +37,28 @@ test_that("prepared distance function works", {
   expect_identical(geos_prepared_distance(c("POINT (0 0)", NA), "POINT (0 10)"), c(10, NA))
 })
 
+test_that("within distance functions work", {
+  skip_if_not(geos_version() >= "3.10.0")
+
+  expect_identical(
+    geos_is_within_distance(
+      c("POINT (0 0)", "POINT (0 0)", NA),
+      c("POINT (0 10)", "POINT (0 20)", "POINT (0 10)"),
+      15
+    ),
+    c(TRUE, FALSE, NA)
+  )
+
+  expect_identical(
+    geos_prepared_is_within_distance(
+      c("POINT (0 0)", "POINT (0 0)", NA),
+      c("POINT (0 10)", "POINT (0 20)", "POINT (0 10)"),
+      15
+    ),
+    c(TRUE, FALSE, NA)
+  )
+})
+
 test_that("linear referencing works", {
   expect_error(geos_project("POINT (0 0)", "POINT (0 0)"), "only supports lineal geometry")
   expect_identical(
@@ -44,13 +66,13 @@ test_that("linear referencing works", {
     c(1, NA)
   )
   expect_identical(
-    geos_project("LINESTRING (0 0, 0 10)", c("POINT (0 1)", NA)),
-    c(1, NA)
+    geos_project("LINESTRING (0 0, 0 10)", c("POINT (0 1)", "POINT EMPTY", NA)),
+    c(1, NaN, NA)
   )
 
   expect_identical(
-    geos_project_normalized("LINESTRING (0 0, 0 10)", c("POINT (0 1)", NA)),
-    c(0.1, NA)
+    geos_project_normalized("LINESTRING (0 0, 0 10)", c("POINT (0 1)", "POINT EMPTY", NA)),
+    c(0.1, NaN, NA)
   )
 })
 
