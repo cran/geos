@@ -2,7 +2,7 @@
 #' Create GEOS Geometry Vectors
 #'
 #' @param x An object to be coerced to a geometry vector
-#' @inheritParams wk::wk_crs
+#' @param crs An object that can be interpreted as a CRS. See [wk::wk_crs()].
 #' @param ... Unused
 #'
 #' @return A geos geometry vector
@@ -19,6 +19,16 @@ as_geos_geometry <- function(x, ...) {
 #' @export
 as_geos_geometry.geos_geometry <- function(x, ...) {
   x
+}
+
+#' @rdname as_geos_geometry
+#' @export
+as_geos_geometry.default <- function(x, ...) {
+  if (wk::wk_is_geodesic(x)) {
+    stop("Can't convert geometry with geodesic edges to geos_geometry()")
+  }
+
+  wk::wk_translate(x, geos_geometry())
 }
 
 #' @rdname as_geos_geometry

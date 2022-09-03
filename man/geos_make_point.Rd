@@ -23,21 +23,13 @@ geos_make_polygon(
 geos_make_collection(geom, type_id = "geometrycollection", feature_id = 1L)
 }
 \arguments{
-\item{x}{Vectors of coordinate values}
+\item{x, y, z}{Vectors of coordinate values}
 
-\item{y}{Vectors of coordinate values}
+\item{crs}{An object that can be interpreted as a CRS. See \code{\link[wk:wk_crs]{wk::wk_crs()}}.}
 
-\item{z}{Vectors of coordinate values}
-
-\item{crs}{An object that can be interpreted as a CRS}
-
-\item{feature_id}{Vectors for which a change in
-sequential values indicates a new feature or ring. Use \code{\link[=factor]{factor()}}
-to convert from a character vector.}
-
-\item{ring_id}{Vectors for which a change in
-sequential values indicates a new feature or ring. Use \code{\link[=factor]{factor()}}
-to convert from a character vector.}
+\item{feature_id, ring_id}{Vectors for which a change in sequential values
+indicates a new feature or ring. Use \code{\link[=factor]{factor()}} to convert from a character
+vector.}
 
 \item{geom}{A \link[=as_geos_geometry]{GEOS geometry vector}}
 
@@ -52,7 +44,12 @@ usefully a character vector with the geometry type
 A \link[=as_geos_geometry]{GEOS geometry vector}
 }
 \description{
-Create geometries from vectors of coordinates
+These functions transform raw coordinates into point, line, polygon,
+features, or nest a vector of geometries into a MULTI* type or
+GEOMETRYCOLLECTION. See \code{\link[wk:wk_vertices]{wk::wk_coords()}}, \code{\link[=geos_unnest]{geos_unnest()}}, or
+\code{\link[wk:wk_flatten]{wk::wk_flatten()}} to perform inverse operations; see \code{\link[wk:xy]{wk::xy()}},
+\code{\link[wk:wk_linestring]{wk::wk_linestring()}}, \code{\link[wk:wk_linestring]{wk::wk_polygon()}}, or \code{\link[wk:wk_linestring]{wk::wk_collection()}} for
+generic versions that work with non-GEOS types.
 }
 \examples{
 geos_make_point(1:3, 1:3)
