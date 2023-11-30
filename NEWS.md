@@ -1,3 +1,7 @@
+# geos 0.2.4
+
+* Fix format string checks as shown on the package check page (#93).
+
 # geos 0.2.3
 
 * Fix NA/NaN issues for forthcoming waldo package update (@hadley, #83).
